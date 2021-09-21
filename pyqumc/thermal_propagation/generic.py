@@ -66,7 +66,6 @@ class GenericContinuous(object):
             print("# Absolute value of maximum component of mean field shift: "
                   "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
 
-
         # Mean field shifted one-body propagator
         self.mu = hamiltonian.mu
 

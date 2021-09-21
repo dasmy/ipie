@@ -7,6 +7,7 @@ from pyqumc.walkers.stack import FieldConfig
 from pyqumc.walkers.walker import Walker
 from pyqumc.utils.misc import get_numeric_names
 from pyqumc.trial_wavefunction.harmonic_oscillator import HarmonicOscillator
+from pyqumc.estimators.greens_function import greens_function
 
 class SingleDetWalker(Walker):
     """UHF style walker.
@@ -73,7 +74,7 @@ class SingleDetWalker(Walker):
                                  dtype=trial.psi.dtype),
                      numpy.zeros(shape=(system.ndown, hamiltonian.nbasis),
                                  dtype=trial.psi.dtype)]
-        self.greens_function(trial)
+        greens_function(self, trial)
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
 
     def inverse_overlap(self, trial):
@@ -275,119 +276,48 @@ class SingleDetWalker(Walker):
         self.ot = self.ot / detR
         return detR
 
-    def greens_function(self, trial):
-        """Compute walker's green's function.
-
-        Parameters
-        ----------
-        trial : object
-            Trial wavefunction object.
-        Returns
-        -------
-        det : float64 / complex128
-            Determinant of overlap matrix.
-        """
-        nup = self.nup
-        ndown = self.ndown
-
-        ovlp = numpy.dot(self.phi[:,:nup].T, trial.psi[:,:nup].conj())
-        self.Ghalf[0] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,:nup].T)
-        self.G[0] = numpy.dot(trial.psi[:,:nup].conj(), self.Ghalf[0])
-        sign_a, log_ovlp_a = numpy.linalg.slogdet(ovlp)
-        sign_b, log_ovlp_b = 1.0, 0.0
-        if ndown > 0:
-            ovlp = numpy.dot(self.phi[:,nup:].T, trial.psi[:,nup:].conj())
-            sign_b, log_ovlp_b = numpy.linalg.slogdet(ovlp)
-            self.Ghalf[1] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,nup:].T)
-            self.G[1] = numpy.dot(trial.psi[:,nup:].conj(), self.Ghalf[1])
-        det = sign_a*sign_b*numpy.exp(log_ovlp_a+log_ovlp_b-self.log_shift)
-        return det
-
-    def rotated_greens_function(self):
-        """Compute "rotated" walker's green's function.
-
-        Green's function without trial wavefunction multiplication.
-
-        Parameters
-        ----------
-        trial : object
-            Trial wavefunction object.
-        """
-        nup = self.nup
-        ndown = self.ndown
-        self.Ghalf[0] = self.phi[:,:nup].dot(self.inv_ovlp[0])
-        self.Ghalf[1] = numpy.zeros(self.Ghalf[0].shape)
-        if (ndown>0):
-            self.Ghalf[1] = self.phi[:,nup:].dot(self.inv_ovlp[1])
-
-    # def local_energy(self, system, two_rdm=None, rchol=None, eri=None, UVT=None):
-    #     """Compute walkers local energy
+    # def greens_function(self, trial):
+    #     """Compute walker's green's function.
 
     #     Parameters
     #     ----------
-    #     system : object
-    #         System object.
-
+    #     trial : object
+    #         Trial wavefunction object.
     #     Returns
     #     -------
-    #     (E, T, V) : tuple
-    #         Mixed estimates for walker's energy components.
+    #     det : float64 / complex128
+    #         Determinant of overlap matrix.
     #     """
-    #     if system.name == "HubbardHolstein":
-    #         return local_energy_hh(system, self.G, self.X, self.Lap, Ghalf=self.Ghalf)
-    #     if system.control_variate:
-    #         return local_energy(system, self.G, Ghalf=self.Ghalf,
-    #                             two_rdm=two_rdm,
-    #                             C0=self.C0,
-    #                             ecoul0=self.ecoul0,
-    #                             exxa0=self.exxa0,
-    #                             exxb0=self.exxb0, eri=eri, UVT=UVT)
-    #     else:
-    #         return local_energy(system, self.G, Ghalf=self.Ghalf,
-    #                             two_rdm=two_rdm, rchol=rchol, eri=eri, UVT=UVT)
+    #     nup = self.nup
+    #     ndown = self.ndown
 
-    def local_energy_2body(self, system, rchol):
-        """Compute walkers two-body local energy
+    #     ovlp = numpy.dot(self.phi[:,:nup].T, trial.psi[:,:nup].conj())
+    #     self.Ghalf[0] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,:nup].T)
+    #     self.G[0] = numpy.dot(trial.psi[:,:nup].conj(), self.Ghalf[0])
+    #     sign_a, log_ovlp_a = numpy.linalg.slogdet(ovlp)
+    #     sign_b, log_ovlp_b = 1.0, 0.0
+    #     if ndown > 0:
+    #         ovlp = numpy.dot(self.phi[:,nup:].T, trial.psi[:,nup:].conj())
+    #         sign_b, log_ovlp_b = numpy.linalg.slogdet(ovlp)
+    #         self.Ghalf[1] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,nup:].T)
+    #         self.G[1] = numpy.dot(trial.psi[:,nup:].conj(), self.Ghalf[1])
+    #     det = sign_a*sign_b*numpy.exp(log_ovlp_a+log_ovlp_b-self.log_shift)
+    #     return det
 
-        Parameters
-        ----------
-        system : object
-            System object.
+    # def rotated_greens_function(self):
+    #     """Compute "rotated" walker's green's function.
 
-        Returns
-        -------
-        (E, T, V) : tuple
-            Mixed estimates for walker's energy components.
-        """
+    #     Green's function without trial wavefunction multiplication.
 
-        nalpha, nbeta = system.nup, system.ndown
-        nbasis = system.nbasis
-        if rchol is not None:
-            naux = rchol.shape[1]
+    #     Parameters
+    #     ----------
+    #     trial : object
+    #         Trial wavefunction object.
+    #     """
+    #     nup = self.nup
+    #     ndown = self.ndown
+    #     self.Ghalf[0] = self.phi[:,:nup].dot(self.inv_ovlp[0])
+    #     self.Ghalf[1] = numpy.zeros(self.Ghalf[0].shape)
+    #     if (ndown>0):
+    #         self.Ghalf[1] = self.phi[:,nup:].dot(self.inv_ovlp[1])
 
-        Ga, Gb = self.Ghalf[0], self.Ghalf[1]
-        Xa = rchol[:nalpha*nbasis].T.dot(Ga.ravel())
-        Xb = rchol[nalpha*nbasis:].T.dot(Gb.ravel())
-        ecoul = numpy.dot(Xa,Xa)
-        ecoul += numpy.dot(Xb,Xb)
-        ecoul += 2*numpy.dot(Xa,Xb)
-        rchol_a, rchol_b = rchol[:nalpha*nbasis], rchol[nalpha*nbasis:]
-
-        rchol_a = rchol_a.T
-        rchol_b = rchol_b.T
-        Ta = numpy.zeros((naux, nalpha, nalpha), dtype=rchol_a.dtype)
-        Tb = numpy.zeros((naux, nbeta, nbeta), dtype=rchol_b.dtype)
-        GaT = Ga.T
-        GbT = Gb.T
-        for x in range(naux):
-            rmi_a = rchol_a[x].reshape((nalpha,nbasis))
-            Ta[x] = rmi_a.dot(GaT)
-            rmi_b = rchol_b[x].reshape((nbeta,nbasis))
-            Tb[x] = rmi_b.dot(GbT)
-        exxa = numpy.tensordot(Ta, Ta, axes=((0,1,2),(0,2,1)))
-        exxb = numpy.tensordot(Tb, Tb, axes=((0,1,2),(0,2,1)))
-
-        exx = exxa + exxb
-        e2b = 0.5 * (ecoul - exx)
-
-        return ecoul, exxa, exxb

@@ -1,6 +1,95 @@
 import numpy
 import scipy.linalg
 
+def greens_function(walker, trial):
+    """Compute walker's green's function.
+
+    Parameters
+    ----------
+    walker : object
+        Walker wavefunction object.
+    trial : object
+        Trial wavefunction object.
+    Returns
+    -------
+    det : float64 / complex128
+        Determinant of overlap matrix.
+    """
+    nup = walker.nup
+    ndown = walker.ndown
+
+    if (walker.name == "SingleDetWalker"):
+        ovlp = numpy.dot(walker.phi[:,:nup].T, trial.psi[:,:nup].conj())
+        walker.Ghalf[0] = numpy.dot(scipy.linalg.inv(ovlp), walker.phi[:,:nup].T)
+        walker.G[0] = numpy.dot(trial.psi[:,:nup].conj(), walker.Ghalf[0])
+        sign_a, log_ovlp_a = numpy.linalg.slogdet(ovlp)
+        sign_b, log_ovlp_b = 1.0, 0.0
+        if ndown > 0:
+            ovlp = numpy.dot(walker.phi[:,nup:].T, trial.psi[:,nup:].conj())
+            sign_b, log_ovlp_b = numpy.linalg.slogdet(ovlp)
+            walker.Ghalf[1] = numpy.dot(scipy.linalg.inv(ovlp), walker.phi[:,nup:].T)
+            walker.G[1] = numpy.dot(trial.psi[:,nup:].conj(), walker.Ghalf[1])
+        det = sign_a*sign_b*numpy.exp(log_ovlp_a+log_ovlp_b-walker.log_shift)
+        return det
+    elif (walker.name == "MultiDetWalker"):
+        tot_ovlp = 0.0
+        for (ix, detix) in enumerate(trial.psi):
+            # construct "local" green's functions for each component of psi_T
+            Oup = numpy.dot(walker.phi[:,:nup].T, detix[:,:nup].conj())
+            # det(A) = det(A^T)
+            ovlp = scipy.linalg.det(Oup)
+            if abs(ovlp) < 1e-16:
+                continue
+            inv_ovlp = scipy.linalg.inv(Oup)
+            walker.Gi[ix,0,:,:] = numpy.dot(detix[:,:nup].conj(),
+                                          numpy.dot(inv_ovlp,
+                                                    walker.phi[:,:nup].T)
+                                          )
+            Odn = numpy.dot(walker.phi[:,nup:].T, detix[:,nup:].conj())
+            ovlp *= scipy.linalg.det(Odn)
+            if abs(ovlp) < 1e-16:
+                continue
+            inv_ovlp = scipy.linalg.inv(Odn)
+            tot_ovlp += trial.coeffs[ix].conj()*ovlp
+            walker.Gi[ix,1,:,:] = numpy.dot(detix[:,nup:].conj(),
+                                          numpy.dot(inv_ovlp,
+                                                    walker.phi[:,nup:].T)
+                                          )
+            walker.ovlps[ix] = ovlp
+            walker.weights[ix] = trial.coeffs[ix].conj() * walker.ovlps[ix]
+
+        if(walker.split_trial_local_energy):
+            tot_ovlp_energy = 0.0
+            for (ix, detix) in enumerate(trial.le_psi):
+                # construct "local" green's functions for each component of psi_T
+                Oup = numpy.dot(walker.phi[:,:nup].T, detix[:,:nup].conj())
+                # det(A) = det(A^T)
+                ovlp = scipy.linalg.det(Oup)
+                if abs(ovlp) < 1e-16:
+                    continue
+                inv_ovlp = scipy.linalg.inv(Oup)
+                walker.le_Gi[ix,0,:,:] = numpy.dot(detix[:,:nup].conj(),
+                                              numpy.dot(inv_ovlp,
+                                                        walker.phi[:,:nup].T)
+                                              )
+                Odn = numpy.dot(walker.phi[:,nup:].T, detix[:,nup:].conj())
+                ovlp *= scipy.linalg.det(Odn)
+                if abs(ovlp) < 1e-16:
+                    continue
+                inv_ovlp = scipy.linalg.inv(Odn)
+                tot_ovlp_energy += trial.le_coeffs[ix].conj()*ovlp
+                walker.le_Gi[ix,1,:,:] = numpy.dot(detix[:,nup:].conj(),
+                                              numpy.dot(inv_ovlp,
+                                                        walker.phi[:,nup:].T)
+                                              )
+                walker.le_weights[ix] = trial.le_coeffs[ix].conj() * walker.ovlps[ix]
+
+            # walker.le_weights *= (tot_ovlp_energy / tot_ovlp)
+            walker.le_oratio = tot_ovlp_energy / tot_ovlp
+        return tot_ovlp
+    elif (walker.name == "ThermalWalker"):
+        return walker.greens_function(trial)
+        
 # Green's functions
 def gab(A, B):
     r"""One-particle Green's function.

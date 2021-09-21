@@ -11,7 +11,7 @@ from pyqumc.estimators.utils import H5EstimatorHelper
 from pyqumc.estimators.thermal import particle_number, one_rdm_from_G
 from pyqumc.estimators.local_energy import local_energy
 
-from pyqumc.estimators.greens_function import gab_mod_ovlp, gab_mod
+from pyqumc.estimators.greens_function import gab_mod_ovlp, gab_mod, greens_function
 
 from pyqumc.utils.io import format_fixed_width_strings, format_fixed_width_floats
 from pyqumc.utils.misc import dotdict
@@ -198,7 +198,7 @@ class Mixed(object):
                         self.estimates[self.names.edenom] += w.weight
                 else:
                     if step % self.energy_eval_freq == 0:
-                        w.greens_function(trial)
+                        greens_function(w, trial)
                         if self.eval_energy:
                             E, T, V = local_energy(system, hamiltonian, w, trial)
                         else:

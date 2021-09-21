@@ -3,6 +3,7 @@ import copy
 import numpy
 import math
 import scipy.linalg
+from pyqumc.estimators.greens_function import greens_function
 from pyqumc.propagation.operations import kinetic_real, local_energy_bound
 from pyqumc.utils.fft import fft_wavefunction, ifft_wavefunction
 from pyqumc.utils.linalg import reortho
@@ -141,7 +142,7 @@ class Hirsch(object):
         nup : int
             Number of up electrons.
         """
-        walker.greens_function(trial)
+        greens_function(walker, trial)
 
     def kinetic_importance_sampling(self, walker, system, trial):
         r"""Propagate by the kinetic term by direct matrix multiplication.
@@ -237,7 +238,7 @@ class Hirsch(object):
         """
         nup = system.nup
         # fields = numpy.random.randint(2, size=system.nbasis)
-        walker.greens_function(trial)
+        greens_function(walker, trial)
         nia, nib = walker.G[0].diagonal(), walker.G[1].diagonal()
         fields = []
         fb_fac = 1.0

@@ -9,7 +9,7 @@ from pyqumc.trial_wavefunction.hubbard_uhf import HubbardUHF
 from pyqumc.walkers.handler import Walkers
 from pyqumc.walkers.single_det import SingleDetWalker
 from pyqumc.utils.misc import dotdict
-from pyqumc.estimators.greens_function import gab
+from pyqumc.estimators.greens_function import gab, greens_function
 from pyqumc.estimators.local_energy import local_energy
 
 options = {'nx': 4, 'ny': 4, 'nup': 8, 'ndown': 8, 'U': 4}
@@ -155,7 +155,7 @@ def test_hubbard_discrete_fp():
     nup = system.nup
     numpy.random.seed(7)
     prop.propagate_walker(walker, system, ham, trial, 0.0)
-    ovlp_a = walker.greens_function(trial)
+    ovlp_a = greens_function(walker, trial)
     ovlp = walker.calc_overlap(trial)
     e1 = walker.weight*walker.phase*ovlp*local_energy(system, ham, walker, trial)[0]
     walker = SingleDetWalker(system, ham, trial, nbp=1, nprop_tot=1)
@@ -163,7 +163,7 @@ def test_hubbard_discrete_fp():
     walker.weight *= detR
     numpy.random.seed(7)
     prop.propagate_walker(walker, system, ham, trial, 0.0)
-    ovlp = walker.greens_function(trial)
+    ovlp = greens_function(walker, trial)
     e2 = walker.weight*walker.phase*ovlp*local_energy(system, ham, walker, trial)[0]
     assert e1 == pytest.approx(e2)
 
@@ -210,7 +210,7 @@ def total_energy(walkers, system, hamiltonian, trial, fp=False):
     num = 0.0
     den = 0.0
     for w in walkers:
-        w.greens_function(trial)
+        greens_function(w,trial)
         e = local_energy(system, hamiltonian, w, trial)[0]
         if fp:
             num += w.weight*w.ot*e*numpy.exp(w.log_detR-w.log_detR_shift)
@@ -271,7 +271,7 @@ def test_hubbard_ortho():
         if i % 5 == 0:
             walkers2.pop_control(comm)
     for w in walkers2.walkers:
-        w.greens_function(trial)
+        greens_function(w,trial)
     weights_2 = [w.weight for w in walkers2.walkers]
     # print(weights, weights_2)
     # energies_2 = [w.local_energy(system)[0].real for w in walkers2.walkers]

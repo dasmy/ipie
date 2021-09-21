@@ -3,6 +3,7 @@ import math
 import numpy
 import sys
 from pyqumc.estimators.local_energy import local_energy
+from pyqumc.estimators.greens_function import greens_function
 from pyqumc.propagation.operations import kinetic_real
 from pyqumc.propagation.hubbard import HubbardContinuous, HubbardContinuousSpin
 from pyqumc.propagation.planewave import PlaneWave
@@ -148,18 +149,6 @@ class Continuous(object):
         if self.force_bias:
             xbar = self.propagator.construct_force_bias(hamiltonian, walker, trial)
 
-        # for i in range(hamiltonian.nfields):
-        #     if numpy.absolute(xbar[i]) > 1.0:
-        #         if self.nfb_trig < 1:
-        #             if self.verbose:
-        #                 pass
-        #                 # TODO: Fix verbosity setting. We broadcast the qmc
-        #                 # object.
-        #                 # print("# Rescaling force bias is triggered: {} {}"
-        #                       # .format(xbar[i], 1.0))
-        #                 # print("# Warning will only be printed once.")
-        #         self.nfb_trig += 1
-        #         xbar[i] /= numpy.absolute(xbar[i])
         rescaled_xbar = xbar > 1.0
         xbar_rescaled = xbar / numpy.absolute(xbar)
         xbar = numpy.where(rescaled_xbar, xbar_rescaled, xbar)
@@ -256,7 +245,7 @@ class Continuous(object):
         Returns
         -------
         """
-        ovlp = walker.greens_function(trial)
+        ovlp = greens_function(walker, trial)
         # 2. Update Slater matrix
         # 2.a Apply one-body
         kinetic_real(walker.phi, system, self.propagator.BH1)

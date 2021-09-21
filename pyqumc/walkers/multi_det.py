@@ -2,6 +2,7 @@ import copy
 import numpy
 import scipy.linalg
 from pyqumc.estimators.local_energy import local_energy_multi_det
+from pyqumc.estimators.greens_function import greens_function
 from pyqumc.walkers.walker import Walker
 from pyqumc.utils.misc import get_numeric_names
 
@@ -73,7 +74,7 @@ class MultiDetWalker(Walker):
         self.G = numpy.zeros(shape=(2, hamiltonian.nbasis, hamiltonian.nbasis),
                              dtype=dtype)
         # Contains overlaps of the current walker with the trial wavefunction.
-        self.greens_function(trial)
+        greens_function(self, trial)
         self.nb = hamiltonian.nbasis
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
 
@@ -191,95 +192,6 @@ class MultiDetWalker(Walker):
         detR = drup * drdn
         self.ot = self.ot / detR
         return detR
-
-    def greens_function(self, trial):
-        """Compute walker's green's function.
-
-        Parameters
-        ----------
-        trial : object
-            Trial wavefunction object.
-        """
-        nup = self.nup
-        tot_ovlp = 0.0
-        for (ix, detix) in enumerate(trial.psi):
-            # construct "local" green's functions for each component of psi_T
-            Oup = numpy.dot(self.phi[:,:nup].T, detix[:,:nup].conj())
-            # det(A) = det(A^T)
-            ovlp = scipy.linalg.det(Oup)
-            if abs(ovlp) < 1e-16:
-                continue
-            inv_ovlp = scipy.linalg.inv(Oup)
-            self.Gi[ix,0,:,:] = numpy.dot(detix[:,:nup].conj(),
-                                          numpy.dot(inv_ovlp,
-                                                    self.phi[:,:nup].T)
-                                          )
-            Odn = numpy.dot(self.phi[:,nup:].T, detix[:,nup:].conj())
-            ovlp *= scipy.linalg.det(Odn)
-            if abs(ovlp) < 1e-16:
-                continue
-            inv_ovlp = scipy.linalg.inv(Odn)
-            tot_ovlp += trial.coeffs[ix].conj()*ovlp
-            self.Gi[ix,1,:,:] = numpy.dot(detix[:,nup:].conj(),
-                                          numpy.dot(inv_ovlp,
-                                                    self.phi[:,nup:].T)
-                                          )
-            self.ovlps[ix] = ovlp
-            self.weights[ix] = trial.coeffs[ix].conj() * self.ovlps[ix]
-
-        if(self.split_trial_local_energy):
-            tot_ovlp_energy = 0.0
-            for (ix, detix) in enumerate(trial.le_psi):
-                # construct "local" green's functions for each component of psi_T
-                Oup = numpy.dot(self.phi[:,:nup].T, detix[:,:nup].conj())
-                # det(A) = det(A^T)
-                ovlp = scipy.linalg.det(Oup)
-                if abs(ovlp) < 1e-16:
-                    continue
-                inv_ovlp = scipy.linalg.inv(Oup)
-                self.le_Gi[ix,0,:,:] = numpy.dot(detix[:,:nup].conj(),
-                                              numpy.dot(inv_ovlp,
-                                                        self.phi[:,:nup].T)
-                                              )
-                Odn = numpy.dot(self.phi[:,nup:].T, detix[:,nup:].conj())
-                ovlp *= scipy.linalg.det(Odn)
-                if abs(ovlp) < 1e-16:
-                    continue
-                inv_ovlp = scipy.linalg.inv(Odn)
-                tot_ovlp_energy += trial.le_coeffs[ix].conj()*ovlp
-                self.le_Gi[ix,1,:,:] = numpy.dot(detix[:,nup:].conj(),
-                                              numpy.dot(inv_ovlp,
-                                                        self.phi[:,nup:].T)
-                                              )
-                self.le_weights[ix] = trial.le_coeffs[ix].conj() * self.ovlps[ix]
-
-            # self.le_weights *= (tot_ovlp_energy / tot_ovlp)
-            self.le_oratio = tot_ovlp_energy / tot_ovlp
-        return tot_ovlp
-
-    # def local_energy(self, system, two_rdm=None, rchol=None, eri=None, UVT=None):
-    #     """Compute walkers local energy
-
-    #     Parameters
-    #     ----------
-    #     system : object
-    #         System object.
-
-    #     Returns
-    #     -------
-    #     (E, T, V) : tuple
-    #         Mixed estimates for walker's energy components.
-    #     """
-    #     if (self.split_trial_local_energy):
-    #         return local_energy_multi_det(system, self.le_Gi,
-    #                                       self.le_weights,
-    #                                       two_rdm=None,
-    #                                       rchol=None)
-    #     else:
-    #         return local_energy_multi_det(system, self.Gi,
-    #                                       self.weights,
-    #                                       two_rdm=None,
-    #                                       rchol=None)
 
     def contract_one_body(self, ints, trial):
         numer = 0.0

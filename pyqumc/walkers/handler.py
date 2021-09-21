@@ -6,6 +6,7 @@ import numpy
 import scipy.linalg
 import sys
 import time
+from pyqumc.estimators.greens_function import greens_function
 from pyqumc.walkers.multi_ghf import MultiGHFWalker
 from pyqumc.walkers.single_det import SingleDetWalker
 from pyqumc.walkers.multi_det import MultiDetWalker
@@ -425,7 +426,7 @@ class Walkers(object):
         for w in self.walkers:
             w.stack.reset()
             w.stack.set_all(trial.dmat)
-            w.greens_function(trial)
+            greens_function(w, trial)
             w.weight = 1.0
             w.phase = 1.0 + 0.0j
 

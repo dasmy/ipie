@@ -7,6 +7,7 @@ from pyqumc.propagation.planewave import PlaneWave
 from pyqumc.walkers.single_det import SingleDetWalker
 from pyqumc.trial_wavefunction.multi_slater import MultiSlater
 from pyqumc.utils.misc import dotdict
+from pyqumc.estimators.greens_function import greens_function
 
 
 @pytest.mark.unit
@@ -31,7 +32,7 @@ def test_pw():
     b = numpy.random.rand(ham.nbasis*(system.nup+system.ndown))
     wfn = (a + 1j*b).reshape((ham.nbasis,system.nup+system.ndown))
     walker.phi = wfn.copy()
-    walker.greens_function(trial)
+    greens_function(walker, trial)
     # fb = prop.construct_force_bias_slow(system, walker, trial)
     fb = prop.construct_force_bias(ham, walker, trial)
     assert numpy.linalg.norm(fb) == pytest.approx(0.16660828645573392)
