@@ -1,7 +1,7 @@
 import numpy
 import scipy.linalg
 from ipie.utils.linalg import  minor_mask
-from ipie.utils.misc import  is_cupy
+from ipie.utils.backend import numlib
 from ipie.legacy.estimators.greens_function import gab_mod, gab_spin
 from ipie.propagation.overlap import (
         get_overlap_one_det_wicks,
@@ -15,6 +15,8 @@ try:
         )
 except ImportError:
     pass
+
+from ipie.utils.backend import numlib as nl
 
 # Later we will add walker kinds as an input too
 def get_greens_function(trial):
@@ -65,20 +67,6 @@ def greens_function_single_det(walker_batch, trial):
     det : float64 / complex128
         Determinant of overlap matrix.
     """
-    if is_cupy(trial.psi): # if even one array is a cupy array we should assume the rest is done with cupy
-        import cupy
-        assert(cupy.is_available())
-        array = cupy.array
-        dot = cupy.dot
-        exp = cupy.exp
-        inv = cupy.linalg.inv
-        slogdet = cupy.linalg.slogdet
-    else:
-        array = numpy.array
-        dot = numpy.dot
-        exp = numpy.exp
-        inv = scipy.linalg.inv
-        slogdet = numpy.linalg.slogdet
 
     nup = walker_batch.nup
     ndown = walker_batch.ndown
@@ -86,24 +74,24 @@ def greens_function_single_det(walker_batch, trial):
     det = []
 
     for iw in range(walker_batch.nwalkers):
-        ovlp = dot(walker_batch.phi[iw][:,:nup].T, trial.psi[:,:nup].conj())
-        ovlp_inv = inv(ovlp)
-        walker_batch.Ghalfa[iw] = dot(ovlp_inv, walker_batch.phi[iw][:,:nup].T)
-        walker_batch.Ga[iw] = dot(trial.psi[:,:nup].conj(), walker_batch.Ghalfa[iw])
-        sign_a, log_ovlp_a = slogdet(ovlp)
+        ovlp = nl.dot(walker_batch.phi[iw][:,:nup].T, trial.psi[:,:nup].conj())
+        ovlp_inv = nl.linalg.inv(ovlp)
+        walker_batch.Ghalfa[iw] = nl.dot(ovlp_inv, walker_batch.phi[iw][:,:nup].T)
+        walker_batch.Ga[iw] = nl.dot(trial.psi[:,:nup].conj(), walker_batch.Ghalfa[iw])
+        sign_a, log_ovlp_a = nl.linalg.slogdet(ovlp)
         sign_b, log_ovlp_b = 1.0, 0.0
         if ndown > 0 and not walker_batch.rhf:
-            ovlp = dot(walker_batch.phi[iw][:,nup:].T, trial.psi[:,nup:].conj())
-            sign_b, log_ovlp_b = slogdet(ovlp)
-            walker_batch.Ghalfb[iw] = dot(inv(ovlp), walker_batch.phi[iw][:,nup:].T)
-            walker_batch.Gb[iw] = dot(trial.psi[:,nup:].conj(), walker_batch.Ghalfb[iw])
-            det += [sign_a*sign_b*exp(log_ovlp_a+log_ovlp_b-walker_batch.log_shift[iw])]
+            ovlp = nl.dot(walker_batch.phi[iw][:,nup:].T, trial.psi[:,nup:].conj())
+            sign_b, log_ovlp_b = nl.linalg.slogdet(ovlp)
+            walker_batch.Ghalfb[iw] = nl.dot(nl.linalg.inv(ovlp), walker_batch.phi[iw][:,nup:].T)
+            walker_batch.Gb[iw] = nl.dot(trial.psi[:,nup:].conj(), walker_batch.Ghalfb[iw])
+            det += [sign_a*sign_b*nl.exp(log_ovlp_a+log_ovlp_b-walker_batch.log_shift[iw])]
         elif ndown > 0 and walker_batch.rhf:
-            det += [sign_a*sign_a*exp(log_ovlp_a+log_ovlp_a-walker_batch.log_shift[iw])]
+            det += [sign_a*sign_a*nl.exp(log_ovlp_a+log_ovlp_a-walker_batch.log_shift[iw])]
         elif ndown == 0:
-            det += [sign_a*exp(log_ovlp_a-walker_batch.log_shift)]
+            det += [sign_a*nl.exp(log_ovlp_a-walker_batch.log_shift)]
 
-    det = array(det, dtype=numpy.complex128)
+    det = nl.array(det, dtype=numpy.complex128)
 
     return det
 
@@ -121,45 +109,28 @@ def greens_function_single_det_batch(walker_batch, trial):
     ot : float64 / complex128
         Overlap with trial.
     """
-    if is_cupy(trial.psi): # if even one array is a cupy array we should assume the rest is done with cupy
-        import cupy
-        assert(cupy.is_available())
-        array = cupy.array
-        dot = cupy.dot
-        exp = cupy.exp
-        einsum = cupy.einsum
-        inv = cupy.linalg.inv
-        slogdet = cupy.linalg.slogdet
-    else:
-        array = numpy.array
-        dot = numpy.dot
-        exp = numpy.exp
-        einsum = numpy.einsum
-        inv = numpy.linalg.inv
-        slogdet = numpy.linalg.slogdet
-
     nup = walker_batch.nup
     ndown = walker_batch.ndown
 
-    ovlp_a = einsum("wmi,mj->wij", walker_batch.phia, trial.psia.conj(), optimize = True)
-    ovlp_inv_a = inv(ovlp_a)
-    sign_a, log_ovlp_a = slogdet(ovlp_a)
+    ovlp_a = nl.einsum("wmi,mj->wij", walker_batch.phia, trial.psia.conj(), optimize = True)
+    ovlp_inv_a = nl.linalg.inv(ovlp_a)
+    sign_a, log_ovlp_a = nl.linalg.slogdet(ovlp_a)
 
-    walker_batch.Ghalfa = einsum("wij,wmj->wim", ovlp_inv_a, walker_batch.phia, optimize=True)
-    walker_batch.Ga = einsum("mi,win->wmn",trial.psia.conj(), walker_batch.Ghalfa, optimize=True)
+    walker_batch.Ghalfa = nl.einsum("wij,wmj->wim", ovlp_inv_a, walker_batch.phia, optimize=True)
+    walker_batch.Ga = nl.einsum("mi,win->wmn",trial.psia.conj(), walker_batch.Ghalfa, optimize=True)
 
     if ndown > 0 and not walker_batch.rhf:
-        ovlp_b = einsum("wmi,mj->wij", walker_batch.phib, trial.psib.conj(), optimize = True)
-        ovlp_inv_b = inv(ovlp_b)
+        ovlp_b = nl.einsum("wmi,mj->wij", walker_batch.phib, trial.psib.conj(), optimize = True)
+        ovlp_inv_b = nl.linalg.inv(ovlp_b)
 
-        sign_b, log_ovlp_b = slogdet(ovlp_b)
-        walker_batch.Ghalfb = einsum("wij,wmj->wim", ovlp_inv_b, walker_batch.phib, optimize=True)
-        walker_batch.Gb = einsum("mi,win->wmn",trial.psib.conj(), walker_batch.Ghalfb, optimize=True)
-        ot = sign_a*sign_b*exp(log_ovlp_a+log_ovlp_b-walker_batch.log_shift)
+        sign_b, log_ovlp_b = nl.linalg.slogdet(ovlp_b)
+        walker_batch.Ghalfb = nl.einsum("wij,wmj->wim", ovlp_inv_b, walker_batch.phib, optimize=True)
+        walker_batch.Gb = nl.einsum("mi,win->wmn",trial.psib.conj(), walker_batch.Ghalfb, optimize=True)
+        ot = sign_a*sign_b*nl.exp(log_ovlp_a+log_ovlp_b-walker_batch.log_shift)
     elif ndown > 0 and walker_batch.rhf:
-        ot = sign_a*sign_a*exp(log_ovlp_a+log_ovlp_a-walker_batch.log_shift)
+        ot = sign_a*sign_a*nl.exp(log_ovlp_a+log_ovlp_a-walker_batch.log_shift)
     elif ndown == 0:
-        ot = sign_a*exp(log_ovlp_a-walker_batch.log_shift)
+        ot = sign_a*nl.exp(log_ovlp_a-walker_batch.log_shift)
 
     return ot
 

@@ -1,5 +1,5 @@
 import numpy
-from ipie.utils.misc import is_cupy
+from ipie.utils.backend import numlib as nl
 
 def construct_force_bias_batch(hamiltonian, walker_batch, trial):
     """Compute optimal force bias.
@@ -65,22 +65,12 @@ def construct_force_bias_batch_single_det(hamiltonian, walker_batch, trial):
     xbar : :class:`numpy.ndarray`
         Force bias.
     """
-    if is_cupy(trial.psi): # if even one array is a cupy array we should assume the rest is done with cupy
-        import cupy
-        assert(cupy.is_available())
-        isrealobj = cupy.isrealobj
-        empty = cupy.empty
-    else:
-        isrealobj = numpy.isrealobj
-        empty = numpy.empty
-
-
     if (walker_batch.rhf):
         Ghalfa = walker_batch.Ghalfa.reshape(walker_batch.nwalkers, walker_batch.nup*hamiltonian.nbasis)
-        if isrealobj(trial._rchola) and isrealobj(trial._rcholb):
+        if nl.isrealobj(trial._rchola) and nl.isrealobj(trial._rcholb):
             vbias_batch_real = 2.*trial._rchola.dot(Ghalfa.T.real)
             vbias_batch_imag = 2.*trial._rchola.dot(Ghalfa.T.imag)
-            vbias_batch = empty((walker_batch.nwalkers, hamiltonian.nchol), dtype=numpy.complex128)
+            vbias_batch = nl.empty((walker_batch.nwalkers, hamiltonian.nchol), dtype=numpy.complex128)
             vbias_batch.real = vbias_batch_real.T.copy()
             vbias_batch.imag = vbias_batch_imag.T.copy()
             return vbias_batch
@@ -91,10 +81,10 @@ def construct_force_bias_batch_single_det(hamiltonian, walker_batch, trial):
     else:
         Ghalfa = walker_batch.Ghalfa.reshape(walker_batch.nwalkers, walker_batch.nup*hamiltonian.nbasis)
         Ghalfb = walker_batch.Ghalfb.reshape(walker_batch.nwalkers, walker_batch.ndown*hamiltonian.nbasis)
-        if isrealobj(trial._rchola) and isrealobj(trial._rcholb):
+        if nl.isrealobj(trial._rchola) and nl.isrealobj(trial._rcholb):
             vbias_batch_real = trial._rchola.dot(Ghalfa.T.real) + trial._rcholb.dot(Ghalfb.T.real)
             vbias_batch_imag = trial._rchola.dot(Ghalfa.T.imag) + trial._rcholb.dot(Ghalfb.T.imag)
-            vbias_batch = empty((walker_batch.nwalkers, hamiltonian.nchol), dtype=numpy.complex128)
+            vbias_batch = nl.empty((walker_batch.nwalkers, hamiltonian.nchol), dtype=numpy.complex128)
             vbias_batch.real = vbias_batch_real.T.copy()
             vbias_batch.imag = vbias_batch_imag.T.copy()
             return vbias_batch

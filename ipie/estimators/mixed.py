@@ -16,7 +16,8 @@ from ipie.estimators.local_energy_batch import local_energy_batch
 from ipie.estimators.greens_function_batch import greens_function
 
 from ipie.utils.io import format_fixed_width_strings, format_fixed_width_floats
-from ipie.utils.misc import dotdict, is_cupy
+from ipie.utils.misc import dotdict
+from ipie.utils.backend import numlib as nl
 
 
 class Mixed(object):
@@ -99,17 +100,9 @@ class Mixed(object):
         else:
             self.two_rdm = None
 
-        if qmc.gpu:
-            import cupy
-            self.estimates = cupy.zeros(self.nreg+dms_size, dtype=dtype)
-            self.names = get_estimator_enum(self.thermal)
-            self.estimates[self.names.time] = time.time()
-     #       self.global_estimates = cupy.zeros(self.nreg+dms_size,
-     #                                           dtype=dtype)
-        else:
-            self.estimates = numpy.zeros(self.nreg+dms_size, dtype=dtype)
-            self.names = get_estimator_enum(self.thermal)
-            self.estimates[self.names.time] = time.time()
+        self.estimates = nl.zeros(self.nreg+dms_size, dtype=dtype)
+        self.names = get_estimator_enum(self.thermal)
+        self.estimates[self.names.time] = time.time()
         self.global_estimates = numpy.zeros(self.nreg+dms_size,
                                                 dtype=dtype)
         self.key = {
@@ -150,21 +143,8 @@ class Mixed(object):
         free_projection : bool
             True if doing free projection.
         """
-        assert(free_projection == False)
-        assert(self.thermal == False)
-        if is_cupy(walker_batch.weight): # if even one array is a cupy array we should assume the rest is done with cupy
-            import cupy
-            assert(cupy.is_available())
-            array = cupy.array
-            zeros = cupy.zeros
-            sum = cupy.sum
-            abs = cupy.abs
-        else:
-            array = numpy.array
-            zeros = numpy.zeros
-            sum = numpy.sum
-            abs = numpy.abs
-
+        assert free_projection == False
+        assert self.thermal == False
         # When using importance sampling we only need to know the current
         # walkers weight as well as the local energy, the walker's overlap
         # with the trial wavefunction is not needed.
@@ -173,17 +153,17 @@ class Mixed(object):
             if self.eval_energy:
                 energy = local_energy_batch(system, hamiltonian, walker_batch, trial)
             else:
-                energy = zeros(walker_batch.nwalkers,3,dtype=numpy.complex128)
-            self.estimates[self.names.enumer] += sum(walker_batch.weight*energy[:,0].real)
+                energy = nl.zeros(walker_batch.nwalkers,3,dtype=numpy.complex128)
+            self.estimates[self.names.enumer] += nl.sum(walker_batch.weight*energy[:,0].real)
             self.estimates[self.names.e1b:self.names.e2b+1] += (
-                array([sum(walker_batch.weight * energy[:,1].real), sum(walker_batch.weight * energy[:,2].real)])
+                nl.array([nl.sum(walker_batch.weight * energy[:,1].real), nl.sum(walker_batch.weight * energy[:,2].real)])
             )
-            self.estimates[self.names.edenom] += sum(walker_batch.weight)
+            self.estimates[self.names.edenom] += nl.sum(walker_batch.weight)
 
-        self.estimates[self.names.uweight] += sum(walker_batch.unscaled_weight)
-        self.estimates[self.names.weight] += sum(walker_batch.weight)
-        self.estimates[self.names.ovlp] += sum(walker_batch.weight * abs(walker_batch.ot))
-        self.estimates[self.names.ehyb] += sum(walker_batch.weight * walker_batch.hybrid_energy)
+        self.estimates[self.names.uweight] += nl.sum(walker_batch.unscaled_weight)
+        self.estimates[self.names.weight] += nl.sum(walker_batch.weight)
+        self.estimates[self.names.ovlp] += nl.sum(walker_batch.weight * nl.abs(walker_batch.ot))
+        self.estimates[self.names.ehyb] += nl.sum(walker_batch.weight * walker_batch.hybrid_energy)
 
         if self.calc_one_rdm:
             start = self.names.time+1
@@ -317,18 +297,11 @@ class Mixed(object):
         nmeasure : int
             Number of steps between measurements.
         """
-        if is_cupy(self.estimates): # if even one array is a cupy array we should assume the rest is done with cupy
-            import cupy
-            assert(cupy.is_available())
-            array = cupy.asnumpy
-        else:
-            array = numpy.array
-
         if step % self.nsteps != 0:
             return
         if nsteps is None:
             nsteps = self.nsteps
-        es = array(self.estimates)
+        es = nl.to_host(self.estimates)
         ns = self.names
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
         es[ns.uweight:ns.weight+1] /= nsteps

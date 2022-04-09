@@ -3,15 +3,15 @@ import pytest
 try:
     from pyscf import gto, ao2mo, scf
     no_pyscf = False
+    from ipie.utils.from_pyscf import (
+            integrals_from_scf,
+            integrals_from_chkfile,
+            get_pyscf_wfn,
+            dump_ipie
+            )
 except (ImportError, OSError, ValueError):
     no_pyscf = True
 
-from ipie.utils.from_pyscf import (
-        integrals_from_scf,
-        integrals_from_chkfile,
-        get_pyscf_wfn,
-        dump_ipie
-        )
 from ipie.utils.io import (
         write_input,
         read_qmcpack_wfn_hdf,

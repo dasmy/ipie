@@ -216,6 +216,8 @@ class AFQMCBatch(object):
                            comm=comm)
 
         if (self.qmc.gpu):
+            from ipie.config import IPIE_USE_GPU
+            IPIE_USE_GPU = True
             try:
                 import cupy
                 assert(cupy.is_available())
@@ -233,7 +235,7 @@ class AFQMCBatch(object):
                 if comm.rank == 0:
                     print("# Not enough GPUs availalbe. {} MPI tasks requested but {} GPUs available.".format(comm.size, ngpus))
                 exit()
-            
+
             if comm.rank == 0:
                 print("# Casting numpy arrays to cupy arrays")
 

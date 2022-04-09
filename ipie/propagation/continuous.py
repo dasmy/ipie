@@ -9,6 +9,7 @@ from ipie.propagation.overlap import get_calc_overlap
 from ipie.propagation.operations import kinetic_real, kinetic_spin_real_batch
 from ipie.propagation.force_bias import construct_force_bias_batch
 from ipie.utils.misc import is_cupy
+from ipie.utils.backend import numlib as nl
 from ipie.propagation.generic import GenericContinuous
 
 class Continuous(object):
@@ -124,30 +125,17 @@ class Continuous(object):
         phi : numpy array
             Exp(VHS) * phi
         """
-        if is_cupy(VHS): # if even one array is a cupy array we should assume the rest is done with cupy
-            import cupy
-            assert(cupy.is_available())
-            copy = cupy.copy
-            copyto = cupy.copyto
-            zeros = cupy.zeros
-            einsum = cupy.einsum
-        else:
-            copy = numpy.copy
-            copyto = numpy.copyto
-            zeros = numpy.zeros
-            einsum = numpy.einsum
-
         if debug:
             copy = numpy.copy(phi)
             c2 = scipy.linalg.expm(VHS).dot(copy)
 
         # Temporary array for matrix exponentiation.
-        Temp = zeros(phi.shape, dtype=phi.dtype)
+        Temp = nl.zeros(phi.shape, dtype=phi.dtype)
 
-        copyto(Temp, phi)
+        nl.copyto(Temp, phi)
         if is_cupy(VHS):
             for n in range(1, self.exp_nmax+1):
-                Temp = einsum('wik,wkj->wij', VHS, Temp, optimize=True) / n
+                Temp = nl.einsum('wik,wkj->wij', VHS, Temp, optimize=True) / n
                 phi += Temp
         else:
             for iw in range(phi.shape[0]):
@@ -159,7 +147,7 @@ class Continuous(object):
         if debug:
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi
-        
+
     def apply_exponential(self, phi, VHS, debug=False):
         """Apply exponential propagator of the HS transformation
         Parameters
@@ -175,40 +163,24 @@ class Continuous(object):
         phi : numpy array
             Exp(VHS) * phi
         """
-        if is_cupy(VHS): # if even one array is a cupy array we should assume the rest is done with cupy
-            import cupy
-            assert(cupy.is_available())
-            copy = cupy.copy
-            copyto = cupy.copyto
-            zeros = cupy.zeros
-        else:
-            copy = numpy.copy
-            copyto = numpy.copyto
-            zeros = numpy.zeros
 
         if debug:
             copy = numpy.copy(phi)
             c2 = scipy.linalg.expm(VHS).dot(copy)
-    
-        # Temporary array for matrix exponentiation.
-        Temp = zeros(phi.shape, dtype=phi.dtype)
 
-        copyto(Temp, phi)
+        # Temporary array for matrix exponentiation.
+        Temp = nl.zeros(phi.shape, dtype=phi.dtype)
+
+        nl.copyto(Temp, phi)
         for n in range(1, self.exp_nmax+1):
             Temp = VHS.dot(Temp) / n
             phi += Temp
-            
+
         if debug:
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi
 
     def apply_bound_hybrid_batch(self, ehyb, eshift): # shift is a number but ehyb is not
-        if is_cupy(ehyb): # if even one array is a cupy array we should assume the rest is done with cupy
-            import cupy
-            assert(cupy.is_available())
-            clip = cupy.clip
-        else:
-            clip = numpy.clip
         # For initial steps until first estimator communication eshift will be
         # zero and hybrid energy can be incorrect. So just avoid capping for
         # first block until reasonable estimate of eshift can be computed.
@@ -216,7 +188,7 @@ class Continuous(object):
             return ehyb
         emax = eshift.real + self.ebound
         emin = eshift.real - self.ebound
-        clip(ehyb.real, a_min=emin,a_max=emax, out=ehyb.real) # in-place clipping
+        nl.clip(ehyb.real, a_min=emin,a_max=emax, out=ehyb.real) # in-place clipping
         return ehyb
 
     def two_body_propagator_batch(self, walker_batch, system, hamiltonian, trial):
@@ -238,48 +210,31 @@ class Continuous(object):
         xshifted : numpy array
             shifited auxiliary field
         """
-        if is_cupy(trial.psi): # if even one array is a cupy array we should assume the rest is done with cupy
-            import cupy
-            assert(cupy.is_available())
-            einsum = cupy.einsum
-            abs = cupy.abs
-            zeros = cupy.zeros
-            normal = cupy.random.normal
-            where = cupy.where
-            sum = cupy.sum
-        else:
-            einsum = numpy.einsum
-            abs = numpy.abs
-            zeros = numpy.zeros
-            normal = numpy.random.normal
-            where = numpy.where
-            sum = numpy.sum
-
         # Optimal force bias.
-        xbar = zeros((walker_batch.nwalkers, hamiltonian.nfields))
+        xbar = nl.zeros((walker_batch.nwalkers, hamiltonian.nfields))
         if self.force_bias:
             start_time = time.time()
             self.propagator.vbias_batch = construct_force_bias_batch(hamiltonian, walker_batch, trial)
             xbar = - self.propagator.sqrt_dt * (1j*self.propagator.vbias_batch-self.propagator.mf_shift)
             self.tfbias += time.time() - start_time
 
-        absxbar = abs(xbar)
+        absxbar = nl.abs(xbar)
         idx_to_rescale = absxbar > 1.0
         nonzeros = absxbar > 1e-13
         xbar_rescaled = xbar.copy()
         xbar_rescaled[nonzeros] = xbar_rescaled[nonzeros] / absxbar[nonzeros]
-        xbar = where(idx_to_rescale, xbar_rescaled, xbar)
+        xbar = nl.where(idx_to_rescale, xbar_rescaled, xbar)
 
-        self.nfb_trig += sum(idx_to_rescale)
+        self.nfb_trig += nl.sum(idx_to_rescale)
 
         # Normally distrubted auxiliary fields.
-        xi = normal(0.0, 1.0, hamiltonian.nfields*walker_batch.nwalkers).reshape(walker_batch.nwalkers, hamiltonian.nfields)
+        xi = nl.random.normal(0.0, 1.0, hamiltonian.nfields*walker_batch.nwalkers).reshape(walker_batch.nwalkers, hamiltonian.nfields)
         xshifted = xi - xbar
 
         # Constant factor arising from force bias and mean field shift
-        cmf = -self.sqrt_dt * einsum("wx,x->w", xshifted, self.propagator.mf_shift)
+        cmf = -self.sqrt_dt * nl.einsum("wx,x->w", xshifted, self.propagator.mf_shift)
         # Constant factor arising from shifting the propability distribution.
-        cfb = einsum("wx,wx->w",xi,xbar) - 0.5*einsum("wx,wx->w",xbar,xbar)
+        cfb = nl.einsum("wx,wx->w",xi,xbar) - 0.5*nl.einsum("wx,wx->w",xbar,xbar)
 
         # Operator terms contributing to propagator.
         start_time = time.time()
@@ -347,51 +302,28 @@ class Continuous(object):
         self.tupdate += time.time() - start_time
     
     def update_weight_hybrid_batch(self, system, hamiltonian, walker_batch, trial, ovlp, ovlp_new, cfb, cmf, xmxbar, eshift):
-        if is_cupy(trial.psi): # if even one array is a cupy array we should assume the rest is done with cupy
-            import cupy
-            assert(cupy.is_available())
-            log = cupy.log
-            exp = cupy.exp
-            isinf = cupy.isinf
-            isfinite = cupy.isfinite
-            cos = cupy.cos
-            array = cupy.array
-            abs = cupy.abs
-            angle = cupy.angle
-            clip = cupy.clip
-        else:
-            log = numpy.log
-            exp = numpy.exp
-            isinf = numpy.isinf
-            isfinite = numpy.isfinite
-            cos = numpy.cos
-            array = numpy.array
-            abs = numpy.abs
-            angle = numpy.angle
-            clip = numpy.clip
-
         ovlp_ratio = ovlp_new / ovlp
-        hybrid_energy = -(log(ovlp_ratio) + cfb + cmf)/self.dt
+        hybrid_energy = -(nl.log(ovlp_ratio) + cfb + cmf)/self.dt
         hybrid_energy = self.apply_bound_hybrid_batch(hybrid_energy, eshift)
         importance_function = (
-                exp(-self.dt*(0.5*(hybrid_energy+walker_batch.hybrid_energy)-eshift))
+                nl.exp(-self.dt*(0.5*(hybrid_energy+walker_batch.hybrid_energy)-eshift))
         )
         # splitting w_alpha = |I(x,\bar{x},|phi_alpha>)| e^{i theta_alpha}
-        magn = abs(importance_function)
-        phase = angle(importance_function)
+        magn = nl.abs(importance_function)
+        phase = nl.angle(importance_function)
         # (magn, phase) = cmath.polar(importance_function)
         walker_batch.hybrid_energy = hybrid_energy
 
-        tosurvive = isfinite(magn)
+        tosurvive = nl.isfinite(magn)
 
         # disabling this because it seems unnecessary
         # tobeinstantlykilled = isinf(magn)
         # magn[tobeinstantlykilled] = 0.0
 
         dtheta = (-self.dt * hybrid_energy - cfb).imag
-        cosine_fac = cos(dtheta)
-        
-        clip(cosine_fac, a_min=0.0,a_max=None, out=cosine_fac) # in-place clipping
+        cosine_fac = nl.cos(dtheta)
+
+        nl.clip(cosine_fac, a_min=0.0, a_max=None, out=cosine_fac) # in-place clipping
         # cosine_fac[cosine_fac < 0.0] = 0.0
         walker_batch.weight = walker_batch.weight * magn * cosine_fac
         walker_batch.ot = ovlp_new
