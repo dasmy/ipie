@@ -4,8 +4,13 @@ try:
 except:
     no_gpu = True
 
+
 import pytest
 import numpy
+
+
+from ipie.config import config
+config.update('use_gpu', True)
 
 from ipie.utils.misc import dotdict
 from ipie.trial_wavefunction.multi_slater import MultiSlater
@@ -52,6 +57,8 @@ def test_local_energy_single_det_batch():
     options = {'hybrid': True}
     qmc = dotdict({'dt': 0.005, 'nstblz': 5, 'batched': True, 'nwalkers': nwalkers})
     prop = Continuous(system, ham, trial, qmc, options=options)
+    from ipie.utils.backend import numlib as nl
+    print(nl, config.get_option('use_gpu'))
     walker_batch = SingleDetWalkerBatch(system, ham, trial, nwalkers)
 
     if not no_gpu:
@@ -59,6 +66,7 @@ def test_local_energy_single_det_batch():
         ham.cast_to_cupy()
         trial.cast_to_cupy()
         walker_batch.cast_to_cupy()
+
 
     for i in range (nsteps):
         prop.propagate_walker_batch(walker_batch, system, ham, trial, trial.energy)

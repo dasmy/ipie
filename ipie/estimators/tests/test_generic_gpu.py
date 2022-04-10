@@ -1,5 +1,9 @@
 import numpy
 import pytest
+
+from ipie.config import config
+config.update('use_gpu', True)
+
 from ipie.systems.generic import Generic
 from ipie.hamiltonians.generic import Generic as HamGeneric
 from ipie.trial_wavefunction.multi_slater import MultiSlater
