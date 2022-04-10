@@ -92,7 +92,6 @@ def calc_overlap_single_det_batch(walker_batch, trial):
     if ndown > 0 and not walker_batch.rhf:
         ovlp_b = nl.einsum("wmi,mj->wij", walker_batch.phib, trial.psib.conj(), optimize = True)
         sign_b, log_ovlp_b = nl.linalg.slogdet(ovlp_b)
-        print(type(sign_b), type(log_ovlp_b), type(walker_batch.log_shift), nl)
         ot = sign_a*sign_b*nl.exp(log_ovlp_a+log_ovlp_b-walker_batch.log_shift)
     elif ndown > 0 and walker_batch.rhf:
         ot = sign_a*sign_a*nl.exp(log_ovlp_a+log_ovlp_a-walker_batch.log_shift)
