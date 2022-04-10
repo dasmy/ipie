@@ -40,7 +40,8 @@ class SingleDetWalkerBatch(WalkerBatch):
         self.name = "SingleDetWalkerBatch"
 
         calc_overlap = get_calc_overlap(trial)
-        self.ot = calc_overlap(self, trial)
+        # self.ot = calc_overlap(self, trial)
+        self.ot = numpy.zeros(nwalkers, dtype=numpy.complex128)
         self.ovlp = self.ot
         self.le_oratio = 1.0
 
@@ -60,7 +61,7 @@ class SingleDetWalkerBatch(WalkerBatch):
             self.Ghalfb = numpy.zeros(shape=(nwalkers, system.ndown, hamiltonian.nbasis),
                                  dtype=numpy.complex128)
         
-        greens_function(self, trial)
+        # greens_function(self, trial)
     
     # This function casts relevant member variables into cupy arrays
     def cast_to_cupy(self, verbose=False):
