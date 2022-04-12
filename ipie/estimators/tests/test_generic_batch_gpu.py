@@ -37,6 +37,7 @@ def test_local_energy_single_det_batch():
     ham = HamGeneric(h1e=numpy.array([h1e,h1e]),
                      chol=chol.reshape((-1,nmo*nmo)).T.copy(),
                      ecore=0)
+    ham.density_diff = False
     # Test PH type wavefunction.
     wfn, init = get_random_phmsd(system.nup, system.ndown, ham.nbasis, ndet=1, init=True)
     trial = MultiSlater(system, ham, wfn, init=init)
@@ -68,9 +69,7 @@ def test_local_energy_single_det_batch():
 
     assert numpy.allclose(energies, energies_einsum)
     for iw in range(nwalkers):
-        energy = local_energy_single_det_batch(system, ham, walker_batch, trial, iw = iw)
-        assert numpy.allclose(energy, energies[iw])
-        assert numpy.allclose(energy, energies_einsum[iw])
+        assert numpy.allclose(energies[iw], energies_einsum[iw])
 
 if __name__ == '__main__':
     test_local_energy_single_det_batch()

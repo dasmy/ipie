@@ -7,6 +7,7 @@ from ipie.propagation.operations import kinetic_real, kinetic_spin_real_batch
 from ipie.propagation.continuous import Continuous
 from ipie.propagation.force_bias import construct_force_bias_batch
 from ipie.hamiltonians.generic import Generic as HamGeneric
+from ipie.legacy.propagation.continuous import Continuous as LegacyContinuous
 from ipie.legacy.walkers.single_det_batch import SingleDetWalkerBatch
 from ipie.legacy.walkers.multi_det_batch import MultiDetTrialWalkerBatch
 from ipie.legacy.walkers.single_det import SingleDetWalker
@@ -49,7 +50,7 @@ def test_hybrid_batch():
     cupy.random.seed(7)
     options = {'hybrid': True}
     qmc = dotdict({'dt': 0.005, 'nstblz': 5})
-    prop = Continuous(system, ham, trial, qmc, options=options)
+    prop = LegacyContinuous(system, ham, trial, qmc, options=options)
 
     walkers = [SingleDetWalker(system, ham, trial) for iw in range(nwalkers)]
     ovlps = []

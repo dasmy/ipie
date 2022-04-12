@@ -1212,10 +1212,6 @@ def local_energy_single_det_batch_einsum(system, hamiltonian, walker_batch, tria
     nbasis = walker_batch.Ghalfa.shape[-1]
     nchol = hamiltonian.nchol
 
-    # Ga = walker_batch.Ga.reshape((nwalkers, nbasis*nbasis))
-    # Gb = walker_batch.Gb.reshape((nwalkers, nbasis*nbasis))
-    # e1b = Ga.dot(hamiltonian.H1[0].ravel()) + Gb.dot(hamiltonian.H1[1].ravel()) + hamiltonian.ecore
-
     walker_batch.Ghalfa = walker_batch.Ghalfa.reshape(nwalkers, nalpha*nbasis)
     walker_batch.Ghalfb = walker_batch.Ghalfb.reshape(nwalkers, nbeta*nbasis)
 
