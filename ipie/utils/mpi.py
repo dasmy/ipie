@@ -58,7 +58,7 @@ def get_shared_comm(comm, verbose=False):
             print("# No MPI shared memory available.")
         return None
 
-def get_shared_array(comm, shape, dtype, verbose=False):
+def get_shared_array(comm, shape, dtype, verbose=False, use_shmem=True):
     """Get shared memory numpy array.
 
     Parameters
@@ -72,11 +72,14 @@ def get_shared_array(comm, shape, dtype, verbose=False):
             nbytes = size * itemsize
         else:
             nbytes = 0
-        win = MPI.Win.Allocate_shared(nbytes, itemsize, comm=comm)
-        buf, itemsize = win.Shared_query(0)
-        assert itemsize == numpy.dtype(dtype).itemsize
-        buf = numpy.array(buf, dtype='B', copy=False)
-        return numpy.ndarray(buffer=buf, dtype=dtype, shape=shape)
+        if use_shmem:
+            win = MPI.Win.Allocate_shared(nbytes, itemsize, comm=comm)
+            buf, itemsize = win.Shared_query(0)
+            assert itemsize == numpy.dtype(dtype).itemsize
+            buf = numpy.array(buf, dtype='B', copy=False)
+            return numpy.ndarray(buffer=buf, dtype=dtype, shape=shape)
+        else:
+            return numpy.zeros(shape, dtype=dtype)
     except AttributeError:
         if verbose:
             print("# No MPI shared memory available.", comm.rank)

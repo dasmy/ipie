@@ -23,6 +23,7 @@ def get_hamiltonian(system, ham_opts=None, verbose=0, comm=None):
     """
     if ham_opts['name'] == 'Generic':
         filename = ham_opts.get('integrals', None)
+        use_shmem = ham_opts.get('use_shared_memory', True)
         if filename is None:
             if comm.rank == 0:
                 print("# Error: integrals not specfied.")
@@ -42,8 +43,8 @@ def get_hamiltonian(system, ham_opts=None, verbose=0, comm=None):
         idx = numpy.triu_indices(nbsf)
 
         chol = chol.reshape((nbsf,nbsf,nchol))
-        
-        shmem = have_shared_mem(comm)
+
+        shmem = have_shared_mem(comm) and use_shmem
         if shmem:
             if comm.rank == 0:
                 cp_shape = (nbsf*(nbsf+1)//2, nchol)
@@ -54,7 +55,11 @@ def get_hamiltonian(system, ham_opts=None, verbose=0, comm=None):
 
             shape = comm.bcast(cp_shape, root=0)
             dtype = comm.bcast(dtype, root=0)
-            chol_packed = get_shared_array(comm, shape, dtype)
+            chol_packed = get_shared_array(
+                    comm,
+                    shape,
+                    dtype,
+                    use_shmem=use_shmem)
             if comm.rank == 0:
                 pack_cholesky(idx[0],idx[1], chol_packed, chol)
             comm.Barrier()
@@ -65,7 +70,7 @@ def get_hamiltonian(system, ham_opts=None, verbose=0, comm=None):
             pack_cholesky(idx[0],idx[1], chol_packed, chol)
 
         chol = chol.reshape((nbsf*nbsf,nchol))
-        
+
         if verbose:
             print("# Time to pack Cholesky vectors: {:.6f}".format(time.time()-start))
 
@@ -80,7 +85,7 @@ def get_hamiltonian(system, ham_opts=None, verbose=0, comm=None):
 
     return ham
 
-def get_generic_integrals(filename, comm=None, verbose=False):
+def get_generic_integrals(filename, comm=None, verbose=False, use_shem=True):
     """Read generic integrals, potentially into shared memory.
 
     Parameters
@@ -104,7 +109,7 @@ def get_generic_integrals(filename, comm=None, verbose=False):
     enuc : float
         Core energy.
     """
-    shmem = have_shared_mem(comm)
+    shmem = have_shared_mem(comm) and use_shmem
     if verbose:
         print("# Have shared memory: {}".format(shmem))
     if shmem:

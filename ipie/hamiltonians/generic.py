@@ -61,8 +61,11 @@ class Generic(object):
         integrals.
     """
 
-    def __init__(self, h1e, chol, ecore, h1e_mod=None, chol_packed = None, options = {},
-                 verbose=False, write_ints=False):
+    def __init__(self, h1e, chol, ecore, h1e_mod=None,
+                 chol_packed=None,
+                 options = {},
+                 verbose=False,
+                 write_ints=False):
         if verbose:
             print("# Parsing input options for hamiltonians.Generic.")
         self.name = "Generic"

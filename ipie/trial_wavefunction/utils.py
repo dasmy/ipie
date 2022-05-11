@@ -30,6 +30,7 @@ def get_trial_wavefunction(system, hamiltonian, options={}, mf=None,
     wfn_file = get_input_value(options, 'filename', default=None,
                                alias=['wavefunction_file'], verbose=verbose)
     wfn_type = options.get('name', 'MultiSlater')
+    shmem = options.get('used_shared_memory', True)
     if wfn_type == 'MultiSlater':
         psi0 = None
         if wfn_file is not None:
@@ -70,7 +71,8 @@ def get_trial_wavefunction(system, hamiltonian, options={}, mf=None,
         trial = MultiSlater(system, hamiltonian, wfn, init=psi0, options=options, verbose=verbose)
         if system.name == 'Generic':
             if (trial.ndets == 1 or trial.ortho_expansion):
-                trial.half_rotate(system, hamiltonian, scomm)
+                trial.half_rotate(system, hamiltonian, scomm,
+                        use_shmem=use_shmem)
         rediag = get_input_value(
                 options,
                 'recompute_ci',

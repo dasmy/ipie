@@ -441,7 +441,7 @@ class MultiSlater(object):
         write_qmcpack_wfn(filename, wfn, 'uhf', self._nelec, self._nbasis,
                           init=init)
 
-    def half_rotate(self, system, hamiltonian, comm=None):
+    def half_rotate(self, system, hamiltonian, comm=None, use_shmem=True):
         self.half_rotated = True
         # Half rotated cholesky vectors (by trial wavefunction or a reference wfn in the case of PHMSD).
         na = system.nup
@@ -466,7 +466,7 @@ class MultiSlater(object):
 
         if (hamiltonian.exact_eri):
             shape = (hr_ndet,(M**2*(na**2+nb**2) + M**2*(na*nb)))
-            self._eri = get_shared_array(comm, shape, numpy.complex128)
+            self._eri = get_shared_array(comm, shape, numpy.complex128, use_shmem=use_shmem)
             self._mem_required = self._eri.nbytes / (1024.0**3.0)
 
             for i, psi in enumerate(self.psi[:hr_ndet]):
@@ -485,11 +485,11 @@ class MultiSlater(object):
 
         shape_a = (nchol, hr_ndet*(M*(na)))
         shape_b = (nchol, hr_ndet*(M*(nb)))
-        self._rchola = get_shared_array(comm, shape_a, self.psi.dtype)
-        self._rcholb = get_shared_array(comm, shape_b, self.psi.dtype)
+        self._rchola = get_shared_array(comm, shape_a, self.psi.dtype, use_shmem=use_shmem)
+        self._rcholb = get_shared_array(comm, shape_b, self.psi.dtype, use_shmem=use_shmem)
         
-        self._rH1a = get_shared_array(comm, (hr_ndet, na,M), self.psi.dtype)
-        self._rH1b = get_shared_array(comm, (hr_ndet, nb,M), self.psi.dtype)
+        self._rH1a = get_shared_array(comm, (hr_ndet, na,M), self.psi.dtype, use_shmem=use_shmem)
+        self._rH1b = get_shared_array(comm, (hr_ndet, nb,M), self.psi.dtype, use_shmem=use_shmem)
 
         for idet, psi in enumerate(self.psi[:hr_ndet]):
             self._rH1a[idet] = psi[:,:na].conj().T.dot(hamiltonian.H1[0])
@@ -564,8 +564,8 @@ class MultiSlater(object):
             K0a = self.psi[0][:,:na].T.conj().dot(Ka) # occ x M
             K0b = self.psi[0][:,na:].T.conj().dot(Kb) # occ x M
             
-            self._rH1a_corr = get_shared_array(comm, (hr_ndet, na,M), self.psi.dtype)
-            self._rH1b_corr = get_shared_array(comm, (hr_ndet, nb,M), self.psi.dtype)
+            self._rH1a_corr = get_shared_array(comm, (hr_ndet, na,M), self.psi.dtype, use_shmem=use_shmem)
+            self._rH1b_corr = get_shared_array(comm, (hr_ndet, nb,M), self.psi.dtype, use_shmem=use_shmem)
             
             self._rH1a_corr = self._rH1a + J0a - K0a
             self._rH1b_corr = self._rH1b + J0b - K0b
