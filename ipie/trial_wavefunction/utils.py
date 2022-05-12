@@ -30,7 +30,7 @@ def get_trial_wavefunction(system, hamiltonian, options={}, mf=None,
     wfn_file = get_input_value(options, 'filename', default=None,
                                alias=['wavefunction_file'], verbose=verbose)
     wfn_type = options.get('name', 'MultiSlater')
-    shmem = options.get('used_shared_memory', True)
+    use_shmem = get_input_value(options, 'use_shared_memory', True, verbose=verbose)
     if wfn_type == 'MultiSlater':
         psi0 = None
         if wfn_file is not None:

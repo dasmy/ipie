@@ -5,6 +5,7 @@ import time
 from ipie.hamiltonians.generic import Generic, read_integrals, construct_h1e_mod
 from ipie.utils.mpi import get_shared_array, have_shared_mem
 from ipie.utils.pack import pack_cholesky
+from ipie.utils.io import get_input_value
 
 def get_hamiltonian(system, ham_opts=None, verbose=0, comm=None):
     """Wrapper to select hamiltonian class
@@ -23,7 +24,7 @@ def get_hamiltonian(system, ham_opts=None, verbose=0, comm=None):
     """
     if ham_opts['name'] == 'Generic':
         filename = ham_opts.get('integrals', None)
-        use_shmem = ham_opts.get('use_shared_memory', True)
+        use_shmem = get_input_value(ham_opts, 'use_shared_memory', True, verbose=verbose)
         if filename is None:
             if comm.rank == 0:
                 print("# Error: integrals not specfied.")
@@ -85,7 +86,7 @@ def get_hamiltonian(system, ham_opts=None, verbose=0, comm=None):
 
     return ham
 
-def get_generic_integrals(filename, comm=None, verbose=False, use_shem=True):
+def get_generic_integrals(filename, comm=None, verbose=False, use_shmem=True):
     """Read generic integrals, potentially into shared memory.
 
     Parameters
