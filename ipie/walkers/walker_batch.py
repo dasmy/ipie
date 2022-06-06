@@ -28,7 +28,7 @@ class WalkerBatch(object):
         self.nwalkers = nwalkers
         self.nup = system.nup
         self.ndown = system.ndown
-        self.total_weight = 0.0
+        self.total_weight = 0.0 + 0.0j
         self.mpi_handler = mpi_handler
 
         self.rhf = walker_opts.get('rhf', False)
@@ -218,7 +218,10 @@ class WalkerBatch(object):
                 continue
             assert(data.size % self.nwalkers == 0) # Only walker-specific data is being communicated
             if isinstance(data[iw], ndarray):
-                self.__dict__[d][iw] = array(buff[s:s+data[iw].size].reshape(data[iw].shape).copy())
+                if isrealobj(self.__dict__[d][iw]):
+                    self.__dict__[d][iw] = array(buff[s:s+data[iw].size].real.reshape(data[iw].shape).copy())
+                else:
+                    self.__dict__[d][iw] = array(buff[s:s+data[iw].size].reshape(data[iw].shape).copy())
                 s += data[iw].size
             elif isinstance(data[iw], list):
                 for ix, l in enumerate(data[iw]):
